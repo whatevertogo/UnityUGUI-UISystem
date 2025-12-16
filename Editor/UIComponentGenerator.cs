@@ -386,7 +386,7 @@ public class UIComponentGenerator : EditorWindow
         // 初始化方法
         sb.AppendLine("");
         sb.AppendLine($"        // 在运行时创建阶段进行自动绑定（UIManager 会调用 OnCreate）");
-        sb.AppendLine("        protected override void OnCreate()");
+        sb.AppendLine("         public override void OnCreate()");
         sb.AppendLine("        {");
         sb.AppendLine("            BindComponentsAtRuntime();");
         sb.AppendLine("        }");
