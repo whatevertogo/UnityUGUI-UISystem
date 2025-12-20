@@ -98,6 +98,7 @@ public class UICodeTemplate
     private void GenerateViewExculuseProperty(StringBuilder sb)
     {
         sb.AppendLine("        public override bool Exclusive => true;");
+        sb.AppendLine("        public override bool CanBack => false;");
     }
 
     private void GenerateViewClassStart(StringBuilder sb, string uiObjectName)
