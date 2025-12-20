@@ -48,6 +48,8 @@ namespace Game.UI
         [SerializeField] private TMP_Text dodge;
         [SerializeField] private TMP_Text skillCooldownReductionRate;
 
+        public override bool Exclusive => true;
+
         public override void OnCreate()
         {
             // 组件已在编辑器中手动绑定，无需运行时自动绑定

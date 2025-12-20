@@ -7,7 +7,10 @@ namespace UI
         // 所有 UI Prefab 都继承此类
         private List<IUILogic> _logics = new List<IUILogic>();
 
-        public virtual bool Exclusive{get;private set;}= true;
+        /// <summary>
+        /// 是否为独占 UI（打开时关闭同层其他 UI）
+        /// </summary>
+        public abstract bool Exclusive { get; }
 
         public void AddLogic(IUILogic logic)
         {
