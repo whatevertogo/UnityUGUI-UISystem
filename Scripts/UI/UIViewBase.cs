@@ -7,6 +7,8 @@ namespace UI
         // 所有 UI Prefab 都继承此类
         private List<IUILogic> _logics = new List<IUILogic>();
 
+        public virtual bool Exclusive{get;private set;}= true;
+
         public void AddLogic(IUILogic logic)
         {
             logic.Bind(this);

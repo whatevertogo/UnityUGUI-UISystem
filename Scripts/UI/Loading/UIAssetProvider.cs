@@ -3,9 +3,6 @@ using UnityEngine;
 
 namespace UI.Loading
 {
-    /// <summary>
-    /// 暂时使用 Resources 加载 UI 预制体
-    /// </summary>
     public static class UIAssetProvider
     {
         public static GameObject Load<T>() where T : UIViewBase
