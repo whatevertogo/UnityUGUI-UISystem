@@ -7,8 +7,9 @@ using UI.Loading;
 namespace UI
 {
     /// <summary>
-    /// UI 管理器（方案 A）
+    /// UI 管理器
     /// - Layer 由 UIManager 统一管理
+    /// - 每个 Layer 一个 View 栈（支持 ESC 回退）
     /// - View 不感知 Layer
     /// </summary>
     public class UIManager : Singleton<UIManager>
@@ -19,14 +20,20 @@ namespace UI
             public UILayer Layer;
         }
 
-        // 当前打开的 UI
+        /// <summary>
+        /// 当前已打开的 View（用于快速查询）
+        /// </summary>
         private readonly Dictionary<Type, ViewEntry> _openViews = new();
 
-        // 每个 Layer 对应一个根节点
+        /// <summary>
+        /// 每个 Layer 对应一个 View 栈（用于导航 / 回退）
+        /// </summary>
+        private readonly Dictionary<UILayer, Stack<UIViewBase>> _layerStacks = new();
+
+        /// <summary>
+        /// 每个 Layer 对应一个根节点
+        /// </summary>
         private readonly Dictionary<UILayer, Transform> _layerRoots = new();
-
-
-        #region Unity 生命周期
 
         protected override void Awake()
         {
@@ -34,8 +41,6 @@ namespace UI
             CreateLayerRoots();
             Debug.Log("[UIManager] Initialized");
         }
-
-        #endregion
 
         #region Layer 管理
 
@@ -45,7 +50,9 @@ namespace UI
             {
                 var go = new GameObject(layer + "Layer");
                 go.transform.SetParent(transform, false);
+
                 _layerRoots[layer] = go.transform;
+                _layerStacks[layer] = new Stack<UIViewBase>();
             }
         }
 
@@ -63,7 +70,11 @@ namespace UI
         /// <summary>
         /// 打开 UI
         /// </summary>
-        public T Open<T>(UIArgs args = null, UILayer layer = UILayer.Normal, params IUILogic[] logics) where T : UIViewBase
+        public T Open<T>(
+            UIArgs args = null,
+            UILayer layer = UILayer.Normal,
+            params IUILogic[] logics
+        ) where T : UIViewBase
         {
             Type type = typeof(T);
 
@@ -100,6 +111,13 @@ namespace UI
                 CloseAllInLayer(layer);
             }
 
+            // 覆盖当前栈顶
+            var stack = _layerStacks[layer];
+            if (stack.TryPeek(out var covered))
+            {
+                covered.OnCovered();
+            }
+
             // 生命周期
             view.OnCreate();
 
@@ -117,6 +135,9 @@ namespace UI
 
             view.OnOpen(args);
 
+            // 入栈
+            stack.Push(view);
+
             // 注册
             _openViews[type] = new ViewEntry
             {
@@ -128,57 +149,96 @@ namespace UI
         }
 
         /// <summary>
+        /// 关闭栈顶 UI（ESC / 返回）
+        /// </summary>
+        public void CloseTop(UILayer layer = UILayer.Normal)
+        {
+            var stack = _layerStacks[layer];
+            if (stack.Count <= 1)
+                return;
+
+            var top = stack.Pop();
+            top.OnClose();
+            Destroy(top.gameObject);
+
+            _openViews.Remove(top.GetType());
+
+            // 恢复下一个
+            stack.Peek().OnResume();
+        }
+
+        /// <summary>
         /// 关闭指定 UI
         /// </summary>
         public void Close<T>() where T : UIViewBase
         {
             Type type = typeof(T);
 
-            if (_openViews.TryGetValue(type, out var entry))
+            if (!_openViews.TryGetValue(type, out var entry))
+                return;
+
+            var layer = entry.Layer;
+            var stack = _layerStacks[layer];
+
+            // 如果是栈顶，走标准回退流程
+            if (stack.Count > 0 && stack.Peek() == entry.View)
             {
-                entry.View.OnClose();
-                Destroy(entry.View.gameObject);
-                _openViews.Remove(type);
+                CloseTop(layer);
+                return;
             }
+
+            // 非栈顶（极少使用）
+            entry.View.OnClose();
+            Destroy(entry.View.gameObject);
+            _openViews.Remove(type);
         }
 
         /// <summary>
-        /// 关闭某一层的所有 UI
+        /// 关闭某一层的所有 UI，包括栈顶和非栈顶
         /// </summary>
         private void CloseAllInLayer(UILayer layer)
         {
-            var toRemove = new List<Type>();
+            var stack = _layerStacks[layer];
 
-            foreach (var kvp in _openViews)
+            while (stack.Count > 0)
             {
-                var entry = kvp.Value;
-                if (entry.View == null)
-                {
-                    toRemove.Add(kvp.Key);
-                    continue;
-                }
+                var view = stack.Pop();
+                if (view == null) continue;
 
-                if (entry.Layer == layer)
-                {
-                    entry.View.OnClose();
-                    Destroy(entry.View.gameObject);
-                    toRemove.Add(kvp.Key);
-                }
-            }
-
-            foreach (var type in toRemove)
-            {
-                _openViews.Remove(type);
+                view.OnClose();
+                Destroy(view.gameObject);
+                _openViews.Remove(view.GetType());
             }
         }
 
         #endregion
 
-        #region 查询
+        #region Back / 查询
+
+        /// <summary>
+        /// 处理返回（ESC）
+        /// </summary>
+        public bool HandleBack(UILayer layer = UILayer.Normal)
+        {
+            var stack = _layerStacks[layer];
+            if (stack.Count <= 1)
+                return false;
+
+            if (!stack.Peek().CanBack)
+                return false;
+
+            CloseTop(layer);
+            return true;
+        }
 
         public bool IsOpen<T>() where T : UIViewBase
         {
             return _openViews.ContainsKey(typeof(T));
+        }
+
+        public bool HasViewInLayer(UILayer layer)
+        {
+            return _layerStacks[layer].Count > 0;
         }
 
         #endregion

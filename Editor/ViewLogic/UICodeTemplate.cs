@@ -105,7 +105,7 @@ public class UICodeTemplate
         sb.AppendLine($"    /// <summary>");
         sb.AppendLine($"    /// {uiObjectName} View 层 - UI 组件绑定");
         sb.AppendLine($"    /// </summary>");
-        sb.AppendLine($"    public partial class {uiObjectName}View : UIViewBase");
+        sb.AppendLine($"    public partial class {uiObjectName} : UIViewBase");
         sb.AppendLine("    {");
     }
 
@@ -157,7 +157,7 @@ public class UICodeTemplate
             {
                 sb.AppendLine($"        public void Bind{CapitalizeFirst(button.Key)}Button(System.Action onClickAction)");
                 sb.AppendLine("        {");
-                sb.AppendLine($"            if ({button.Key} != null) {{ {button.Key}.onClick.RemoveAllListeners(); {button.Key}.onClick.AddListener(() => onClickAction?.Invoke()); }}");
+                sb.AppendLine($"            if ({button.Key} != null) {{ {button.Key}.onClick.RemoveAllListeners(); if (onClickAction != null) {{ {button.Key}.onClick.AddListener(() => onClickAction()); }} }}");
                 sb.AppendLine("        }");
             }
         }
@@ -282,6 +282,19 @@ public class UICodeTemplate
         sb.AppendLine("            _view = null;");
         sb.AppendLine("        }");
 
+        // 覆盖 / 恢复 回调
+        sb.AppendLine();
+        sb.AppendLine("        public virtual void OnCovered()");
+        sb.AppendLine("        {");
+        sb.AppendLine("            // 被同层新 UI 覆盖时的默认处理（子类可重写）");
+        sb.AppendLine("        }");
+
+        sb.AppendLine();
+        sb.AppendLine("        public virtual void OnResume()");
+        sb.AppendLine("        {");
+        sb.AppendLine("            // 从覆盖状态恢复时的默认处理（子类可重写）");
+        sb.AppendLine("        }");
+
         // 生成按钮点击处理方法
         foreach (var button in buttonComponents)
         {
@@ -314,6 +327,12 @@ public class UICodeTemplate
         sb.AppendLine("        public void Bind(UIViewBase view)");
         sb.AppendLine("        {");
         sb.AppendLine("            _core.Bind(view);");
+        sb.AppendLine($"            _view = view as {uiObjectName}View;");
+        // 绑定按钮事件到 wrapper 回调
+        foreach (var button in buttonComponents)
+        {
+            sb.AppendLine($"            if (_view != null) _view.Bind{CapitalizeFirst(button.Key)}Button(On{CapitalizeFirst(button.Key)}Clicked);");
+        }
         sb.AppendLine("        }");
         sb.AppendLine();
         sb.AppendLine("        public void OnOpen(UIArgs args)");
@@ -324,6 +343,12 @@ public class UICodeTemplate
         sb.AppendLine("        public void OnClose()");
         sb.AppendLine("        {");
         sb.AppendLine("            _core.OnClose();");
+        // 解绑按钮事件
+        foreach (var button in buttonComponents)
+        {
+            sb.AppendLine($"            if (_view != null) _view.Bind{CapitalizeFirst(button.Key)}Button(null);");
+        }
+        sb.AppendLine("            _view = null;");
         sb.AppendLine("        }");
 
         // 生成按钮点击事件处理方法
