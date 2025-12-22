@@ -257,6 +257,8 @@ public class UIComponentBinder
                     compType = found.GetType();
                 }
 
+                if (!typeof(Component).IsAssignableFrom(compType) && !compType.IsInterface) continue;
+
                 var compInstance = targetGo.GetComponent(compType);
                 if (compInstance == null) continue;
 
@@ -316,6 +318,8 @@ public class UIComponentBinder
                 compType = found.GetType();
             }
 
+            if (!typeof(Component).IsAssignableFrom(compType) && !compType.IsInterface) continue;
+
             var compInstance = targetGo.GetComponent(compType);
             if (compInstance == null) continue;
 
@@ -342,18 +346,36 @@ public class UIComponentBinder
     /// <summary>
     /// 根据组件短名查找 Type（在所有已加载程序集搜索）
     /// </summary>
+    /// <summary>
+    /// 根据组件短名查找 Type（在所有已加载程序集搜索）
+    /// 优先查找 UnityEngine.Component 的子类
+    /// </summary>
     private System.Type GetComponentTypeByName(string name)
     {
+        System.Type bestMatch = null;
+
         foreach (var asm in AppDomain.CurrentDomain.GetAssemblies())
         {
             try
             {
-                var t = asm.GetTypes().FirstOrDefault(x => x.Name == name || x.FullName?.EndsWith("." + name) == true);
-                if (t != null) return t;
+                var types = asm.GetTypes().Where(x => x.Name == name || x.FullName?.EndsWith("." + name) == true);
+                foreach (var t in types)
+                {
+                    // 如果是 Component 子类，直接返回（最高优先级）
+                    if (typeof(UnityEngine.Component).IsAssignableFrom(t))
+                    {
+                        return t;
+                    }
+                    // 暂存非 Component 的匹配作为备选
+                    if (bestMatch == null)
+                    {
+                        bestMatch = t;
+                    }
+                }
             }
             catch { }
         }
-        return null;
+        return bestMatch;
     }
 
     /// <summary>

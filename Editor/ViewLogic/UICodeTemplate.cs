@@ -51,7 +51,7 @@ public class UICodeTemplate
     /// <summary>
     /// 生成 Logic 层代码
     /// </summary>
-    public string GenerateLogicCode(string uiObjectName, Dictionary<string, UIComponentInfo> components, string namespaceName)
+    public string GenerateLogicCode(string uiObjectName, string viewClassName, Dictionary<string, UIComponentInfo> components, string namespaceName)
     {
         var sb = new StringBuilder();
 
@@ -59,10 +59,10 @@ public class UICodeTemplate
         GenerateLogicHeader(sb, namespaceName);
 
         // 生成 LogicCore 类
-        GenerateLogicCore(sb, uiObjectName, components);
+        GenerateLogicCore(sb, uiObjectName, viewClassName, components);
 
         // 生成 MonoBehaviour Wrapper 类
-        GenerateLogicWrapper(sb, uiObjectName, components);
+        GenerateLogicWrapper(sb, uiObjectName, viewClassName, components);
 
         // 生成命名空间结束
         if (!string.IsNullOrEmpty(namespaceName))
@@ -156,7 +156,10 @@ public class UICodeTemplate
             sb.AppendLine("        /// <summary>绑定 Button 事件</summary>");
             foreach (var button in buttonComponents)
             {
-                sb.AppendLine($"        public void Bind{CapitalizeFirst(button.Key)}Button(System.Action onClickAction)");
+                // 如果变量名已经包含了类型后缀（如 saveButton），去掉后缀以避免生成 BindXButtonButton
+                var cleanName = StripComponentTypeSuffix(button.Key, button.Value.name);
+                var methodBase = CapitalizeFirst(cleanName);
+                sb.AppendLine($"        public void Bind{methodBase}Button(System.Action onClickAction)");
                 sb.AppendLine("        {");
                 sb.AppendLine($"            if ({button.Key} != null) {{ {button.Key}.onClick.RemoveAllListeners(); if (onClickAction != null) {{ {button.Key}.onClick.AddListener(() => onClickAction()); }} }}");
                 sb.AppendLine("        }");
@@ -255,7 +258,7 @@ public class UICodeTemplate
         }
     }
 
-    private void GenerateLogicCore(StringBuilder sb, string uiObjectName, Dictionary<string, UIComponentInfo> components)
+    private void GenerateLogicCore(StringBuilder sb, string uiObjectName, string viewClassName, Dictionary<string, UIComponentInfo> components)
     {
         var buttonComponents = components.Where(c => c.Value.name == "Button").ToList();
         var textComponents = components.Where(c => 
@@ -266,10 +269,10 @@ public class UICodeTemplate
         sb.AppendLine("    /// </summary>");
         sb.AppendLine($"    public class {uiObjectName}LogicCore");
         sb.AppendLine("    {");
-        sb.AppendLine($"        protected {uiObjectName} _view;");
+        sb.AppendLine($"        protected {viewClassName} _view;");
         sb.AppendLine("        public virtual void Bind(UIViewBase view)");
         sb.AppendLine("        {");
-        sb.AppendLine($"            _view = view as {uiObjectName};");
+        sb.AppendLine($"            _view = view as {viewClassName};");
         sb.AppendLine("        }");
         sb.AppendLine();
         sb.AppendLine("        public virtual void OnOpen(UIArgs args)");
@@ -299,8 +302,10 @@ public class UICodeTemplate
         // 生成按钮点击处理方法
         foreach (var button in buttonComponents)
         {
+            var cleanName = StripComponentTypeSuffix(button.Key, button.Value.name);
+            var methodBase = CapitalizeFirst(cleanName);
             sb.AppendLine();
-            sb.AppendLine($"        public void On{CapitalizeFirst(button.Key)}Clicked()");
+            sb.AppendLine($"        public void On{methodBase}Clicked()");
             sb.AppendLine("        {");
             sb.AppendLine("            // TODO: 处理按钮点击后的业务逻辑（纯逻辑）");
             if (textComponents.Count > 0)
@@ -313,7 +318,7 @@ public class UICodeTemplate
         sb.AppendLine("    }");
     }
 
-    private void GenerateLogicWrapper(StringBuilder sb, string uiObjectName, Dictionary<string, UIComponentInfo> components)
+    private void GenerateLogicWrapper(StringBuilder sb, string uiObjectName, string viewClassName, Dictionary<string, UIComponentInfo> components)
     {
         var buttonComponents = components.Where(c => c.Value.name == "Button").ToList();
 
@@ -324,14 +329,14 @@ public class UICodeTemplate
         sb.AppendLine($"    public class {uiObjectName}Logic : MonoBehaviour, IUILogic");
         sb.AppendLine("    {");
         sb.AppendLine($"        private {uiObjectName}LogicCore _core = new {uiObjectName}LogicCore();");
-        sb.AppendLine($"        private {uiObjectName} _view;");
+        sb.AppendLine($"        private {viewClassName} _view;");
         sb.AppendLine();
         sb.AppendLine("        public void Bind(UIViewBase view)");
         sb.AppendLine("        {");
-        sb.AppendLine($"            _view = view as {uiObjectName};");
+        sb.AppendLine($"            _view = view as {viewClassName};");
         sb.AppendLine("            if (_view == null)");
         sb.AppendLine("            {");
-        sb.AppendLine($"                Debug.LogError($\"[UI] {uiObjectName}Logic: Bind failed! View is not {{typeof({uiObjectName})}}\");");
+        sb.AppendLine($"                Debug.LogError($\"[UI] {uiObjectName}Logic: Bind failed! View is not {{typeof({viewClassName})}}\");");
         sb.AppendLine("                return;");
         sb.AppendLine("            }");
         sb.AppendLine();
@@ -340,7 +345,8 @@ public class UICodeTemplate
         // 绑定按钮事件到 wrapper 回调
         foreach (var button in buttonComponents)
         {
-            string btnName = CapitalizeFirst(button.Key);
+            var cleanName = StripComponentTypeSuffix(button.Key, button.Value.name);
+            string btnName = CapitalizeFirst(cleanName);
             sb.AppendLine($"            // Auto-bind event for {button.Key}");
             sb.AppendLine($"            _view.Bind{btnName}Button(On{btnName}Clicked);");
         }
@@ -357,7 +363,8 @@ public class UICodeTemplate
         // 解绑按钮事件
         foreach (var button in buttonComponents)
         {
-            string btnName = CapitalizeFirst(button.Key);
+            var cleanName = StripComponentTypeSuffix(button.Key, button.Value.name);
+            string btnName = CapitalizeFirst(cleanName);
             sb.AppendLine($"            if (_view != null) _view.Bind{btnName}Button(null);");
         }
         sb.AppendLine("            _view = null;");
@@ -378,7 +385,8 @@ public class UICodeTemplate
         // 生成按钮点击事件处理方法
         foreach (var button in buttonComponents)
         {
-            string btnName = CapitalizeFirst(button.Key);
+            var cleanName = StripComponentTypeSuffix(button.Key, button.Value.name);
+            string btnName = CapitalizeFirst(cleanName);
             sb.AppendLine();
             sb.AppendLine($"        private void On{btnName}Clicked()");
             sb.AppendLine("        {");
@@ -398,5 +406,20 @@ public class UICodeTemplate
     {
         if (string.IsNullOrEmpty(str)) return str;
         return char.ToUpper(str[0]) + str.Substring(1);
+    }
+
+    /// <summary>
+    /// 去掉变量名中可能包含的组件类型后缀（例如 "saveButton" 中的 "Button"），以避免生成重复的后缀
+    /// </summary>
+    private string StripComponentTypeSuffix(string varName, string componentType)
+    {
+        if (string.IsNullOrEmpty(varName)) return varName;
+        var lower = varName.ToLower();
+        var t = componentType.ToLower();
+        if (lower.EndsWith(t))
+        {
+            return varName.Substring(0, varName.Length - t.Length);
+        }
+        return varName;
     }
 }

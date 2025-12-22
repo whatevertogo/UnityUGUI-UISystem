@@ -2,6 +2,7 @@ using UnityEngine;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System;
 
 /// <summary>
 /// UI 组件扫描器 - 负责扫描和分析 UI 对象的组件
@@ -99,11 +100,21 @@ public class UIComponentScanner
     {
         // 清理 GameObject 名称，移除特殊字符
         string baseName = MakeSafeVariableName(gameObjectName);
-        
-        // 如果有多个组件类型，添加类型后缀
-        string varName = existingComponents.Values.Any(c => c.name == baseName) 
-            ? $"{baseName}{componentType}" 
-            : baseName;
+
+        // 如果名称以组件类型后缀结尾（例如 "saveButton" + Button），去掉后缀以得到更语义化的变量名
+        var typeLower = componentType.ToLower();
+        if (baseName.EndsWith(typeLower, StringComparison.OrdinalIgnoreCase))
+        {
+            baseName = baseName.Substring(0, baseName.Length - typeLower.Length);
+            if (string.IsNullOrEmpty(baseName)) baseName = "element";
+        }
+
+        // 如果已有相同变量名，添加类型后缀以区分
+        string varName = baseName;
+        if (existingComponents.ContainsKey(varName))
+        {
+            varName = baseName + componentType;
+        }
 
         // 确保变量名唯一
         int suffix = 1;

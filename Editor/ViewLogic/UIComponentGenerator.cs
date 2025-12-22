@@ -229,7 +229,7 @@ public class UIComponentGenerator : EditorWindow
             // 生成代码
             // 注意：这里传递 viewClassName 给模板，确保生成的 class XXX : UIViewBase 与文件名一致
             string viewCode = codeTemplate.GenerateViewCode(viewClassName, components, customNamespace);
-            string logicCode = codeTemplate.GenerateLogicCode(uiObject.name, components, customNamespace);
+            string logicCode = codeTemplate.GenerateLogicCode(uiObject.name, viewClassName, components, customNamespace);
 
             // 创建目录并保存文件
             CreateDirectoriesAndSaveFiles(uiObject.name, viewClassName, viewCode, logicCode);
@@ -343,7 +343,7 @@ public class UIComponentGenerator : EditorWindow
         string ns = SessionState.GetString("PendingUIBinding_Namespace", "Game.UI");
 
         // 查找对象
-        GameObject targetObject = EditorUtility.InstanceIDToObject(objectID) as GameObject;
+        GameObject targetObject = EditorUtility.EntityIdToObject(objectID) as GameObject;
         if (targetObject == null)
         {
             Debug.LogWarning("[UIComponentGenerator] 找不到原始目标对象，无法自动挂载脚本。");
