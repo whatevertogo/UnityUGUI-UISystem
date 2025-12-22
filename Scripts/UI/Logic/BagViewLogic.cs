@@ -22,6 +22,9 @@ namespace Game.UI
         public virtual void Bind(UIViewBase view)
         {
             _view = view as BagViewView;
+            _view.BindPlayerStats1Button(OnPlayerStats1Clicked);
+            _view.BindPlayerStats12Button(OnPlayerStats12Clicked);
+            _view.BindClearCardButton1(OnClearCardButtonClicked);
         }
 
         public virtual void OnOpen(UIArgs args)
@@ -36,8 +39,11 @@ namespace Game.UI
                 localCharacterStats.OnStatsChanged += SetAllPlayerStatsText;
             }
             SetAllPlayerStatsText();
-            _view.SetPlayerImage(localCharacterStats.Icon);
+            //TODO- 设置玩家头像
+            // _view.SetPlayerImage(localCharacterStats.Icon);
 
+            // 初始化卡牌列表
+            RefreshAllCardViews();
         }
 
         public virtual void OnClose()
@@ -50,6 +56,62 @@ namespace Game.UI
             }
             _view = null;
         }
+
+        public void RefreshActiveCardViews()
+        {
+
+            var inv = InventoryManager.Instance;
+            if (inv == null)
+            {
+                Debug.LogWarning("[BagView] InventoryManager.Instance is null");
+                return;
+            }
+
+            var cards = inv.GetAllActiveCardDefinitions();
+
+            foreach (var card in cards)
+            {
+                if (card == null) continue;
+                _view.AddCardView(card.CardId, 1);
+            }
+        }
+
+        public void RefreshPassiveCardViews()
+        {
+
+            var inv = InventoryManager.Instance;
+            if (inv == null)
+            {
+                Debug.LogWarning("[BagView] InventoryManager.Instance is null");
+                return;
+            }
+
+            var cards = inv.GetAllPassiveCardDefinitions();
+
+            foreach (var card in cards)
+            {
+                if (card == null) continue;
+                _view.AddCardView(card.CardId);
+            }
+        }
+
+        public void RefreshAllCardViews()
+        {
+            _view.ClearCardViews();
+            RefreshActiveCardViews();
+            RefreshPassiveCardViews();
+        }
+
+        public void OnClearCardButtonClicked()
+        {
+            Debug.Log("[BagViewLogic] OnClearCardButtonClicked invoked");
+            RefreshAllCardViews();
+
+            // 发布事件请求，由 SlotService 或其他订阅方执行具体清理（实现解耦）
+            var playerId = GameRoot.Instance.PlayerManager.GetLocalPlayerData()?.PlayerId;
+            EventBus.Publish(new RogueGame.Events.ClearAllSlotsRequestedEvent { PlayerId = playerId });
+        }
+
 
         /// <summary>
         /// 被同层新 UI 覆盖
@@ -64,19 +126,24 @@ namespace Game.UI
         /// </summary>
         public virtual void OnResume()
         {
-            // 默认行为：恢复交互
+            // 初始化卡牌列表
+            RefreshActiveCardViews();
         }
 
         public void OnPlayerStats1Clicked()
         {
-            // TODO: 处理按钮点击后的业务逻辑（纯逻辑）
-            // 可在此调用 _view.SetXXX 方法更新文本内容
+            _view.SetBagViewALLActive(true);
+            _view.SetPlayerStatViewActive(false);
+            // 初始化卡牌列表
+            RefreshActiveCardViews();
         }
 
         public void OnPlayerStats12Clicked()
         {
-            // TODO: 处理按钮点击后的业务逻辑（纯逻辑）
-            // 可在此调用 _view.SetXXX 方法更新文本内容
+            _view.SetBagViewALLActive(false);
+            _view.SetPlayerStatViewActive(true);
+            // 初始化卡牌列表
+            RefreshActiveCardViews();
         }
 
 
@@ -127,16 +194,6 @@ namespace Game.UI
         public void OnClose()
         {
             _core.OnClose();
-        }
-
-        private void OnPlayerStats1Clicked()
-        {
-            _core.OnPlayerStats1Clicked();
-        }
-
-        private void OnPlayerStats12Clicked()
-        {
-            _core.OnPlayerStats12Clicked();
         }
 
         public void OnCovered()

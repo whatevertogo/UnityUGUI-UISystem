@@ -97,7 +97,7 @@ public class UICodeTemplate
 
     private void GenerateViewExculuseProperty(StringBuilder sb)
     {
-        sb.AppendLine("        public override bool Exclusive => true;");
+        sb.AppendLine("        public override bool Exclusive => false;");
         sb.AppendLine("        public override bool CanBack => false;");
     }
 
@@ -266,10 +266,10 @@ public class UICodeTemplate
         sb.AppendLine("    /// </summary>");
         sb.AppendLine($"    public class {uiObjectName}LogicCore");
         sb.AppendLine("    {");
-        sb.AppendLine($"        protected {uiObjectName}View _view;");
+        sb.AppendLine($"        protected {uiObjectName} _view;");
         sb.AppendLine("        public virtual void Bind(UIViewBase view)");
         sb.AppendLine("        {");
-        sb.AppendLine($"            _view = view as {uiObjectName}View;");
+        sb.AppendLine($"            _view = view as {uiObjectName};");
         sb.AppendLine("        }");
         sb.AppendLine();
         sb.AppendLine("        public virtual void OnOpen(UIArgs args)");
@@ -324,15 +324,25 @@ public class UICodeTemplate
         sb.AppendLine($"    public class {uiObjectName}Logic : MonoBehaviour, IUILogic");
         sb.AppendLine("    {");
         sb.AppendLine($"        private {uiObjectName}LogicCore _core = new {uiObjectName}LogicCore();");
+        sb.AppendLine($"        private {uiObjectName} _view;");
         sb.AppendLine();
         sb.AppendLine("        public void Bind(UIViewBase view)");
         sb.AppendLine("        {");
+        sb.AppendLine($"            _view = view as {uiObjectName};");
+        sb.AppendLine("            if (_view == null)");
+        sb.AppendLine("            {");
+        sb.AppendLine($"                Debug.LogError($\"[UI] {uiObjectName}Logic: Bind failed! View is not {{typeof({uiObjectName})}}\");");
+        sb.AppendLine("                return;");
+        sb.AppendLine("            }");
+        sb.AppendLine();
         sb.AppendLine("            _core.Bind(view);");
-        sb.AppendLine($"            _view = view as {uiObjectName}View;");
+        
         // 绑定按钮事件到 wrapper 回调
         foreach (var button in buttonComponents)
         {
-            sb.AppendLine($"            if (_view != null) _view.Bind{CapitalizeFirst(button.Key)}Button(On{CapitalizeFirst(button.Key)}Clicked);");
+            string btnName = CapitalizeFirst(button.Key);
+            sb.AppendLine($"            // Auto-bind event for {button.Key}");
+            sb.AppendLine($"            _view.Bind{btnName}Button(On{btnName}Clicked);");
         }
         sb.AppendLine("        }");
         sb.AppendLine();
@@ -347,18 +357,32 @@ public class UICodeTemplate
         // 解绑按钮事件
         foreach (var button in buttonComponents)
         {
-            sb.AppendLine($"            if (_view != null) _view.Bind{CapitalizeFirst(button.Key)}Button(null);");
+            string btnName = CapitalizeFirst(button.Key);
+            sb.AppendLine($"            if (_view != null) _view.Bind{btnName}Button(null);");
         }
         sb.AppendLine("            _view = null;");
+        sb.AppendLine("        }");
+        
+        // 实现接口方法
+        sb.AppendLine();
+        sb.AppendLine("        public void OnCovered()");
+        sb.AppendLine("        {");
+        sb.AppendLine("            _core.OnCovered();");
+        sb.AppendLine("        }");
+        sb.AppendLine();
+        sb.AppendLine("        public void OnResume()");
+        sb.AppendLine("        {");
+        sb.AppendLine("            _core.OnResume();");
         sb.AppendLine("        }");
 
         // 生成按钮点击事件处理方法
         foreach (var button in buttonComponents)
         {
+            string btnName = CapitalizeFirst(button.Key);
             sb.AppendLine();
-            sb.AppendLine($"        private void On{CapitalizeFirst(button.Key)}Clicked()");
+            sb.AppendLine($"        private void On{btnName}Clicked()");
             sb.AppendLine("        {");
-            sb.AppendLine($"            _core.On{CapitalizeFirst(button.Key)}Clicked();");
+            sb.AppendLine($"            _core.On{btnName}Clicked();");
             sb.AppendLine("        }");
         }
 

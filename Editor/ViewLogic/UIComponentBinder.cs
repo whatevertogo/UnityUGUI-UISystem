@@ -30,7 +30,7 @@ public class UIComponentBinder
     /// <summary>
     /// 兼容方法：根据当前设置自动添加 View/Logic 脚本到目标对象（不做字段绑定）
     /// </summary>
-    public void AutoAddScriptsAndBindComponents(GameObject uiObject, Dictionary<string, UIComponentInfo> components, string viewPath)
+    public void AutoAddScriptsAndBindComponents(GameObject uiObject, Dictionary<string, UIComponentInfo> components, string viewPath, string viewClassName = null)
     {
         if (uiObject == null) return;
 
@@ -43,7 +43,10 @@ public class UIComponentBinder
         // 视图脚本
         if (AddMode == 0 || AddMode == 1)
         {
-            string viewScriptName = uiObject.name + "View";
+            // 优先使用传入的类名，否则回退到默认（+View）
+            // 默认情况：如果是智能生成的，viewClassName 应该已经是对的了
+            string viewScriptName = !string.IsNullOrEmpty(viewClassName) ? viewClassName : (uiObject.name + "View");
+            
             var viewType = GetTypeFromAssembly(viewScriptName);
             if (viewType != null)
             {
@@ -81,7 +84,7 @@ public class UIComponentBinder
         if (PersistBindings)
         {
             // 尝试写回绑定（若类型已编译），失败时给出警告
-            string viewScriptName = uiObject.name + "View";
+            string viewScriptName = !string.IsNullOrEmpty(viewClassName) ? viewClassName : (uiObject.name + "View");
             var viewType = GetTypeFromAssembly(viewScriptName);
             if (viewType == null)
             {
@@ -106,12 +109,12 @@ public class UIComponentBinder
     /// 允许通过参数直接调用的重载（Generator 可能会使用）
     /// </summary>
     public void AutoAddScriptsAndBindComponents(GameObject uiObject, Dictionary<string, UIComponentInfo> components, string viewPath,
-        bool autoAddComponents, bool persistBindings, int addMode)
+        bool autoAddComponents, bool persistBindings, int addMode, string viewClassName = null)
     {
         this.AutoAddComponents = autoAddComponents;
         this.PersistBindings = persistBindings;
         this.AddMode = addMode;
-        AutoAddScriptsAndBindComponents(uiObject, components, viewPath);
+        AutoAddScriptsAndBindComponents(uiObject, components, viewPath, viewClassName);
     }
 
     /// <summary>

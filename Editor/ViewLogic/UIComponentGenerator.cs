@@ -223,15 +223,19 @@ public class UIComponentGenerator : EditorWindow
                 return;
             }
 
+            // 智能处理 View 名称：避免 "ViewView" 后缀，并确保类名与文件名一致
+            string viewClassName = uiObject.name.EndsWith("View") ? uiObject.name : uiObject.name + "View";
+            
             // 生成代码
-            string viewCode = codeTemplate.GenerateViewCode(uiObject.name, components, customNamespace);
+            // 注意：这里传递 viewClassName 给模板，确保生成的 class XXX : UIViewBase 与文件名一致
+            string viewCode = codeTemplate.GenerateViewCode(viewClassName, components, customNamespace);
             string logicCode = codeTemplate.GenerateLogicCode(uiObject.name, components, customNamespace);
 
             // 创建目录并保存文件
-            CreateDirectoriesAndSaveFiles(uiObject.name, viewCode, logicCode);
+            CreateDirectoriesAndSaveFiles(uiObject.name, viewClassName, viewCode, logicCode);
 
             EditorUtility.DisplayDialog("成功",
-                $"已生成脚本并自动添加到对象：\n\nView: {Path.Combine(viewScriptPath, uiObject.name + "View.cs")}\n\nLogic: {Path.Combine(logicScriptPath, uiObject.name + "Logic.cs")}",
+                $"已生成脚本并自动添加到对象：\n\nView: {Path.Combine(viewScriptPath, viewClassName + ".cs")}\n\nLogic: {Path.Combine(logicScriptPath, uiObject.name + "Logic.cs")}",
                 "OK");
         }
         catch (System.Exception ex)
@@ -266,13 +270,14 @@ public class UIComponentGenerator : EditorWindow
                 return;
             }
 
-            string viewCode = codeTemplate.GenerateViewCode(uiObject.name, components, customNamespace);
+            string viewClassName = uiObject.name.EndsWith("View") ? uiObject.name : uiObject.name + "View";
+            string viewCode = codeTemplate.GenerateViewCode(viewClassName, components, customNamespace);
 
             // 创建目录并保存文件
-            CreateDirectoryAndSaveViewFile(uiObject.name, viewCode);
+            CreateDirectoryAndSaveViewFile(uiObject.name, viewClassName, viewCode);
 
             EditorUtility.DisplayDialog("成功",
-                $"已重新生成 View 并自动绑定：\n\nView: {Path.Combine(viewScriptPath, uiObject.name + "View.cs")}",
+                $"已重新生成 View 并自动绑定：\n\nView: {Path.Combine(viewScriptPath, viewClassName + ".cs")}",
                 "OK");
         }
         catch (System.Exception ex)
@@ -290,49 +295,99 @@ public class UIComponentGenerator : EditorWindow
     /// <summary>
     /// 创建目录并保存文件
     /// </summary>
-    private void CreateDirectoriesAndSaveFiles(string uiObjectName, string viewCode, string logicCode)
+    private void CreateDirectoriesAndSaveFiles(string uiObjectName, string viewClassName, string viewCode, string logicCode)
     {
         // 创建目录
         Directory.CreateDirectory(viewScriptPath);
         Directory.CreateDirectory(logicScriptPath);
 
-        // 保存文件
-        string viewPath = Path.Combine(viewScriptPath, $"{uiObjectName}View.cs");
+        // 保存文件 (文件名必须与类名一致)
+        string viewPath = Path.Combine(viewScriptPath, $"{viewClassName}.cs");
         string logicPath = Path.Combine(logicScriptPath, $"{uiObjectName}Logic.cs");
 
         File.WriteAllText(viewPath, viewCode, Encoding.UTF8);
         File.WriteAllText(logicPath, logicCode, Encoding.UTF8);
 
-        AssetDatabase.Refresh();
+        // 存储挂载任务到 SessionState
+        if (autoAddComponents && selectedObject != null)
+        {
+            SessionState.SetString("PendingUIBinding_Name", uiObjectName);
+            SessionState.SetString("PendingUIBinding_ViewClass", viewClassName); // 存储 View 类名供 Binder 使用
+            SessionState.SetInt("PendingUIBinding_ID", selectedObject.GetInstanceID());
+            SessionState.SetBool("PendingUIBinding_Persist", autoPersistBindings);
+            SessionState.SetInt("PendingUIBinding_Mode", autoAddMode);
+            SessionState.SetString("PendingUIBinding_Namespace", customNamespace);
+        }
 
-        // 自动绑定组件（根据用户选项）
-        var components = scanner.ScanUIComponents(Selection.activeGameObject);
-        binder.AutoAddComponents = autoAddComponents;
-        binder.PersistBindings = autoPersistBindings;
-        binder.AddMode = autoAddMode;
-        binder.AutoAddScriptsAndBindComponents(Selection.activeGameObject, components, viewPath);
+        AssetDatabase.Refresh();
+    }
+    
+    /// <summary>
+    /// 编译完成后回调：执行脚本挂载
+    /// </summary>
+    [UnityEditor.Callbacks.DidReloadScripts]
+    private static void OnScriptsReloaded()
+    {
+        string uiObjectName = SessionState.GetString("PendingUIBinding_Name", string.Empty);
+        string viewClassName = SessionState.GetString("PendingUIBinding_ViewClass", string.Empty);
+        int objectID = SessionState.GetInt("PendingUIBinding_ID", 0);
+
+        if (string.IsNullOrEmpty(uiObjectName) || objectID == 0) return;
+
+        // 清除状态
+        SessionState.EraseString("PendingUIBinding_Name");
+        SessionState.EraseString("PendingUIBinding_ViewClass");
+        SessionState.EraseInt("PendingUIBinding_ID");
+        bool persist = SessionState.GetBool("PendingUIBinding_Persist", false);
+        int mode = SessionState.GetInt("PendingUIBinding_Mode", 0);
+        string ns = SessionState.GetString("PendingUIBinding_Namespace", "Game.UI");
+
+        // 查找对象
+        GameObject targetObject = EditorUtility.InstanceIDToObject(objectID) as GameObject;
+        if (targetObject == null)
+        {
+            Debug.LogWarning("[UIComponentGenerator] 找不到原始目标对象，无法自动挂载脚本。");
+            return;
+        }
+
+        Debug.Log($"[UIComponentGenerator] 编译完成，开始为 '{targetObject.name}' 挂载脚本...");
+
+        // 执行绑定
+        var config = new UIComponentConfig();
+        var scanner = new UIComponentScanner(config);
+        var binder = new UIComponentBinder(ns);
+        
+        var components = scanner.ScanUIComponents(targetObject);
+        // 传递 viewClassName
+        binder.AutoAddScriptsAndBindComponents(targetObject, components, "", true, persist, mode, viewClassName);
+        
+        Debug.Log($"[UIComponentGenerator] 脚本挂载完成！");
     }
 
     /// <summary>
     /// 创建目录并保存 View 文件
     /// </summary>
-    private void CreateDirectoryAndSaveViewFile(string uiObjectName, string viewCode)
+    private void CreateDirectoryAndSaveViewFile(string uiObjectName, string viewClassName, string viewCode)
     {
         // 创建目录
         Directory.CreateDirectory(viewScriptPath);
 
         // 保存文件
-        string viewPath = Path.Combine(viewScriptPath, $"{uiObjectName}View.cs");
+        string viewPath = Path.Combine(viewScriptPath, $"{viewClassName}.cs");
         File.WriteAllText(viewPath, viewCode, Encoding.UTF8);
+        
+        // 存储挂载任务到 SessionState (仅 View)
+        if (autoAddComponents && selectedObject != null)
+        {
+            SessionState.SetString("PendingUIBinding_Name", uiObjectName);
+            SessionState.SetString("PendingUIBinding_ViewClass", viewClassName);
+            SessionState.SetInt("PendingUIBinding_ID", selectedObject.GetInstanceID());
+            SessionState.SetBool("PendingUIBinding_Persist", autoPersistBindings);
+            SessionState.SetInt("PendingUIBinding_Mode", 1); // 强制 View Only
+            SessionState.SetString("PendingUIBinding_Namespace", customNamespace);
+        }
 
         AssetDatabase.Refresh();
-
-        // 自动绑定组件（根据用户选项）
-        var components = scanner.ScanUIComponents(Selection.activeGameObject);
-        binder.AutoAddComponents = autoAddComponents;
-        binder.PersistBindings = autoPersistBindings;
-        binder.AddMode = autoAddMode;
-        binder.AutoAddScriptsAndBindComponents(Selection.activeGameObject, components, viewPath);
     }
 }
 

@@ -25,7 +25,7 @@ namespace UI
         /// <summary>
         /// 是否允许 ESC / Back 回退
         /// </summary>
-        public virtual bool CanBack => true;
+        public abstract bool CanBack { get; }
 
         #region Logic 管理
 
