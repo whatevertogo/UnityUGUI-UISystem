@@ -4,6 +4,7 @@ using UnityEngine;
 using CDTU.Utils;
 using UI.Loading;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace UI
 {
@@ -36,11 +37,13 @@ namespace UI
         /// </summary>
         private readonly Dictionary<UILayer, Transform> _layerRoots = new();
 
+        public static UIAssetProvider UIAssetProvider { get; } = new UIAssetProvider();
+
         protected override void Awake()
         {
             base.Awake();
             CreateLayerRoots();
-            Debug.Log("[UIManager] Initialized (List-Based)");
+            CDTU.Utils.CDLogger.Log("[UIManager] Initialized (List-Based)");
         }
 
         #region Layer 管理
@@ -73,7 +76,7 @@ namespace UI
         /// - 自动处理置顶（Bring To Front）
         /// - 自动管理层级栈
         /// </summary>
-        public T Open<T>(
+        public async Task<T> Open<T>(
             UIArgs args = null,
             UILayer layer = UILayer.Normal,
             params IUILogic[] logics
@@ -90,7 +93,7 @@ namespace UI
                 // 安全检查：如果层级不匹配，通常保持原层级或报警告
                 if (existEntry.Layer != layer)
                 {
-                    Debug.LogWarning($"[UIManager] Try to open {type.Name} on {layer}, but it's already on {existEntry.Layer}. Keeping original layer.");
+                    CDTU.Utils.CDLogger.LogWarning($"[UIManager] Try to open {type.Name} on {layer}, but it's already on {existEntry.Layer}. Keeping original layer.");
                     layer = existEntry.Layer;
                     stack = _layerStacks[layer];
                 }
@@ -120,10 +123,10 @@ namespace UI
             }
 
             // 2. 加载新 UI
-            GameObject prefab = UIAssetProvider.Load<T>();
+            GameObject prefab = await UIAssetProvider.LoadAsync<T>() as GameObject;
             if (prefab == null)
             {
-                Debug.LogError($"[UIManager] UI prefab not found: {type.Name}");
+                CDTU.Utils.CDLogger.LogError($"[UIManager] UI prefab not found: {type.Name}");
                 return null;
             }
 
@@ -134,7 +137,7 @@ namespace UI
             T view = instance.GetComponent<T>();
             if (view == null)
             {
-                Debug.LogError($"[UIManager] {type.Name} missing UIViewBase");
+                CDTU.Utils.CDLogger.LogError($"[UIManager] {type.Name} missing UIViewBase");
                 Destroy(instance);
                 return null;
             }

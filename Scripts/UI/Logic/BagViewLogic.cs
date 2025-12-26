@@ -3,6 +3,7 @@ using UnityEngine;
 using UI;
 using Character.Components;
 using Unity.VisualScripting;
+using Character.Player;
 
 namespace Game.UI
 {
@@ -13,10 +14,10 @@ namespace Game.UI
     {
         protected BagViewView _view;
 
-        private PlayerManager playerManager;
-
         private CharacterStats localCharacterStats;
         private PlayerController localplayerController;
+
+        private PlayerSkillComponent localPlayerSkillComponent;
 
 
         public virtual void Bind(UIViewBase view)
@@ -29,21 +30,33 @@ namespace Game.UI
 
         public virtual void OnOpen(UIArgs args)
         {
-            playerManager = GameRoot.Instance.PlayerManager;
-            localplayerController = playerManager.GetLocalPlayerData()?.Controller;
+            if (_view == null)
+            {
+                CDTU.Utils.CDLogger.LogError("[BagViewLogicCore] OnOpen() 中 _view 是 null！Bind() 可能没有被正确调用");
+                return;
+            }
+
+            localplayerController = GameRoot.Instance.PlayerManager?.GetLocalPlayerData()?.Controller;
             localCharacterStats = localplayerController?.GetComponent<CharacterStats>();
+            localPlayerSkillComponent = localplayerController?.GetComponent<PlayerSkillComponent>();
             if (localCharacterStats != null)
             {
                 // 防止重复订阅：先移除再添加
                 localCharacterStats.OnStatsChanged -= SetAllPlayerStatsText;
                 localCharacterStats.OnStatsChanged += SetAllPlayerStatsText;
+
             }
             SetAllPlayerStatsText();
             //TODO- 设置玩家头像
             // _view.SetPlayerImage(localCharacterStats.Icon);
 
+
             // 初始化卡牌列表
             RefreshAllCardViews();
+
+            //TODO=初始化装备槽
+            // localPlayerSkillComponent.PlayerSkillSlots[1].Runtime.CardId
+            // localPlayerSkillComponent.PlayerSkillSlots[2].Runtime.CardId
         }
 
         public virtual void OnClose()
@@ -59,52 +72,71 @@ namespace Game.UI
 
         public void RefreshActiveCardViews()
         {
-
             var inv = InventoryManager.Instance;
             if (inv == null)
             {
-                Debug.LogWarning("[BagView] InventoryManager.Instance is null");
+                CDTU.Utils.CDLogger.LogWarning("[BagView] InventoryManager.Instance is null");
                 return;
             }
 
-            var cards = inv.GetAllActiveCardDefinitions();
-
-            foreach (var card in cards)
+            if (_view == null)
             {
-                if (card == null) continue;
-                _view.AddCardView(card.CardId, 1);
-            }
-        }
-
-        public void RefreshPassiveCardViews()
-        {
-
-            var inv = InventoryManager.Instance;
-            if (inv == null)
-            {
-                Debug.LogWarning("[BagView] InventoryManager.Instance is null");
+                CDTU.Utils.CDLogger.LogError("[BagView] _view 是 null！无法添加卡牌视图");
                 return;
             }
 
-            var cards = inv.GetAllPassiveCardDefinitions();
+            // 按 CardId 分组，找到最高等级的实例
+            var cardGroups = new System.Collections.Generic.Dictionary<string, InventoryManager.ActiveCardState>();
 
-            foreach (var card in cards)
+            foreach (var st in inv.ActiveCardStates)
             {
-                if (card == null) continue;
-                _view.AddCardView(card.CardId);
+                if (st == null) continue;
+
+                // 如果该 CardId 还没有记录，或者当前实例等级更高，则更新
+                if (!cardGroups.ContainsKey(st.CardId) || st.Level > cardGroups[st.CardId].Level)
+                {
+                    cardGroups[st.CardId] = st;
+                }
             }
+
+            // 添加视图（每张卡只显示一次，显示最高等级）
+            foreach (var kvp in cardGroups)
+            {
+                _view.AddCardView(kvp.Value.CardId, kvp.Value.Level);
+            }
+
+            CDTU.Utils.CDLogger.Log($"[BagView] 刷新主动卡视图：{cardGroups.Count} 张卡");
         }
+
+        // public void RefreshPassiveCardViews()
+        // {
+        //     var inv = InventoryManager.Instance;
+        //     if (inv == null)
+        //     {
+        //         CDTU.Utils.Logger.LogWarning("[BagView] InventoryManager.Instance is null");
+        //         return;
+        //     }
+
+        //     var passive = inv.PassiveCards;
+        //     foreach (var p in passive)
+        //     {
+        //         if (p.Count <= 0) continue;
+        //         _view.AddCardView(p.CardId, p.Count);
+        //     }
+        // }
 
         public void RefreshAllCardViews()
         {
+            if (_view == null) return;
+
             _view.ClearCardViews();
             RefreshActiveCardViews();
-            RefreshPassiveCardViews();
+            // RefreshPassiveCardViews();
         }
 
         public void OnClearCardButtonClicked()
         {
-            Debug.Log("[BagViewLogic] OnClearCardButtonClicked invoked");
+            CDTU.Utils.CDLogger.Log("[BagViewLogic] OnClearCardButtonClicked invoked");
             RefreshAllCardViews();
 
             // 发布事件请求，由 SlotService 或其他订阅方执行具体清理（实现解耦）
@@ -150,9 +182,10 @@ namespace Game.UI
 
         public void SetAllPlayerStatsText()
         {
-            if (playerManager != null)
+            var pm =GameRoot.Instance.PlayerManager;
+            if (pm != null)
             {
-                var player = playerManager.GetLocalPlayerData()?.Controller;
+                var player = pm.GetLocalPlayerData()?.Controller;
                 if (player != null)
                 {
                     if (localCharacterStats != null)

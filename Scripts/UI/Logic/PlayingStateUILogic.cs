@@ -1,6 +1,8 @@
 using System;
 using UnityEngine;
 using UI;
+using System.Threading.Tasks;
+using RogueGame.Events;
 
 namespace Game.UI
 {
@@ -13,11 +15,19 @@ namespace Game.UI
 
         private PlayerRuntimeState _myPlayerState;
         private bool _skillEventsSubscribed = false;
+
         public virtual void Bind(UIViewBase view)
         {
             _view = view as PlayingStateUIView;
             // 绑定 BagButton 点击事件
             _view?.BindBagButton(OnBagButtonClicked);
+            EventBus.Subscribe<LayerTransitionEvent>(OnLayerTransition);
+        }
+
+        private void OnLayerTransition(LayerTransitionEvent evt)
+        {
+            CDTU.Utils.CDLogger.Log($"层过渡事件：从层 {evt.FromLayer} 到层 {evt.ToLayer}");
+            _view.SetLevelText($"第{evt.ToLayer}层");
         }
 
         //todo-后面联机可能改
@@ -42,7 +52,7 @@ namespace Game.UI
         {
             // 关闭时清理
             // 退订所有事件，避免内存泄漏或悬挂引用
-            var pm = PlayerManager.GetExistingInstance();
+            var pm = PlayerManager.Instance;
             if (pm != null)
             {
                 pm.OnPlayerRegistered -= PlayerRegistered;
@@ -50,6 +60,7 @@ namespace Game.UI
             }
             UnsubscribeFromPlayerHealthEvents();
             UnsubscribeFromSkillEvents();
+            EventBus.Unsubscribe<LayerTransitionEvent>(OnLayerTransition);
             _myPlayerState = null;
             _view = null;
         }
@@ -65,7 +76,7 @@ namespace Game.UI
         }
         private void SubscribeToSkillEvents()
         {
-            var pm = PlayerManager.GetExistingInstance();
+            var pm = PlayerManager.Instance;
             if (pm == null) return;
             if (_skillEventsSubscribed) return;
             pm.OnPlayerSkillEnergyChanged += this.OnPlayerSkillEnergyChanged;
@@ -77,7 +88,7 @@ namespace Game.UI
 
         private void UnsubscribeFromSkillEvents()
         {
-            var pm = PlayerManager.GetExistingInstance();
+            var pm = PlayerManager.Instance;
             if (pm == null) return;
             if (!_skillEventsSubscribed) return;
             pm.OnPlayerSkillEnergyChanged -= this.OnPlayerSkillEnergyChanged;
@@ -110,7 +121,7 @@ namespace Game.UI
 
             // 保存引用并订阅生命值与技能事件
             _myPlayerState = state;
-            Debug.Log("玩家注册：" + state.PlayerId);
+            CDTU.Utils.CDLogger.Log("玩家注册：" + state.PlayerId);
             SubscribeToPlayerHealthEvents();
             SubscribeToSkillEvents();
             // TODO-刷新技能槽初始显示
@@ -144,7 +155,7 @@ namespace Game.UI
 
         private void OnPlayerHealthChanged(float currentHealth, float maxHealth)
         {
-            Debug.Log($"玩家血量变化，当前血量：{currentHealth}");
+            CDTU.Utils.CDLogger.Log($"玩家血量变化，当前血量：{currentHealth}");
             _view?.SetHealthNormalized(currentHealth / Math.Max(1f, maxHealth));
         }
 
@@ -183,9 +194,23 @@ namespace Game.UI
         private void OnBagButtonClicked()
         {
             //时间停止
-            UIManager.Instance.Open<BagViewView>(layer: UILayer.Normal);
+            // await UIManager.Instance.Open<BagViewView>(layer: UILayer.Normal);
             //停止游戏输入写在UILogic的 OnCovered 里
             //开启游戏输入写在UILogic的 OnResume 里
+            _ = OpenBagUIAsync();
+        }
+
+        private async Task<object> OpenBagUIAsync()
+        {
+            try
+            {
+                await UIManager.Instance.Open<BagViewView>(layer: UILayer.Normal);
+            }
+            catch (System.Exception ex)
+            {
+                CDTU.Utils.CDLogger.LogError($"打开背包失败: {ex.Message}");
+            }
+            return null;
         }
     }
 

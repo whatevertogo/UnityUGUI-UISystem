@@ -28,9 +28,9 @@ namespace Game.UI
 
         public virtual void OnOpen(UIArgs args)
         {
-            var shopArg = args as ShopUIArg;
+            var shopArg = args as ShopUIArgs;
 
-            if (_view is null) return;
+            if (_view == null) return;
 
             // 记录最近的 ShopType 并消费金额
             if (shopArg != null)
@@ -69,7 +69,7 @@ namespace Game.UI
         {
             if (_view != null)
             {
-                int coinNumber = InventoryManager.Instance != null ? InventoryManager.Instance.CoinsNumber : 0;
+                int coinNumber = InventoryManager.Instance != null ? InventoryManager.Instance.Coins : 0;
                 _view.SetCoinText($"Coins: {coinNumber}");
             }
         }
@@ -78,7 +78,7 @@ namespace Game.UI
         {
             if (ShopManager.Instance == null)
             {
-                Debug.LogWarning("[ShopUIViewLogic] ShopManager.Instance is null");
+                CDTU.Utils.CDLogger.LogWarning("[ShopUIViewLogic] ShopManager.Instance is null");
                 return;
             }
 
