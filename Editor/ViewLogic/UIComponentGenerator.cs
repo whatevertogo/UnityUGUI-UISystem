@@ -37,10 +37,12 @@ public class UIComponentGenerator : EditorWindow
     private const string EditorPrefPersist = "UIComponentGenerator_PersistBindings";
     private const string EditorPrefAddMode = "UIComponentGenerator_AddMode";
 
+
+
     // 状态跟踪
     private bool isProcessing = false;
     private string lastError = string.Empty;
-
+    private bool _initialized = false;
     [MenuItem("Tools/UI Component Generator")]
     public static void ShowWindow()
     {
@@ -49,12 +51,26 @@ public class UIComponentGenerator : EditorWindow
 
     private void OnEnable()
     {
+    }
+
+    /// <summary>
+    /// 延迟初始化，保证安全
+    /// </summary>
+    private void EnsureInitialized()
+    {
+        if (_initialized) return;
+        _initialized = true;
+
         InitializeComponents();
+
         // 加载用户偏好
         autoAddComponents = EditorPrefs.GetBool(EditorPrefAutoAdd, true);
         autoPersistBindings = EditorPrefs.GetBool(EditorPrefPersist, false);
         autoAddMode = EditorPrefs.GetInt(EditorPrefAddMode, 0);
     }
+
+
+
 
     /// <summary>
     /// 初始化核心组件
@@ -69,6 +85,9 @@ public class UIComponentGenerator : EditorWindow
 
     private void OnGUI()
     {
+        EnsureInitialized();
+
+
         DrawHeader();
         DrawObjectSelection();
         DrawConfiguration();
@@ -92,7 +111,7 @@ public class UIComponentGenerator : EditorWindow
     private void DrawObjectSelection()
     {
         GUILayout.Label("目标对象", EditorStyles.boldLabel);
-        
+
         GameObject currentSelection = Selection.activeGameObject;
         if (IsValidUIObject(currentSelection))
         {
@@ -114,7 +133,7 @@ public class UIComponentGenerator : EditorWindow
     private void DrawConfiguration()
     {
         GUILayout.Label("配置选项", EditorStyles.boldLabel);
-        
+
         string newNamespace = EditorGUILayout.TextField("命名空间", customNamespace);
         if (newNamespace != customNamespace)
         {
@@ -151,12 +170,12 @@ public class UIComponentGenerator : EditorWindow
     private void DrawActionButtons()
     {
         GUILayout.Label("操作", EditorStyles.boldLabel);
-        
+
         GameObject currentSelection = Selection.activeGameObject;
         bool canGenerate = IsValidUIObject(currentSelection) && !isProcessing;
-        
+
         EditorGUI.BeginDisabledGroup(!canGenerate);
-        
+
         // 主生成按钮
         if (GUILayout.Button($"生成脚本 ({(currentSelection != null ? currentSelection.name : "无选中")})", GUILayout.Height(35)))
         {
@@ -168,9 +187,9 @@ public class UIComponentGenerator : EditorWindow
         {
             GenerateViewScriptOnly(currentSelection);
         }
-        
+
         EditorGUI.EndDisabledGroup();
-        
+
         GUILayout.Space(10);
     }
 
@@ -183,7 +202,7 @@ public class UIComponentGenerator : EditorWindow
         {
             EditorGUILayout.HelpBox("正在处理中...", MessageType.Info);
         }
-        
+
         if (!string.IsNullOrEmpty(lastError))
         {
             EditorGUILayout.HelpBox($"错误: {lastError}", MessageType.Error);
@@ -208,7 +227,7 @@ public class UIComponentGenerator : EditorWindow
     private void GenerateUIScripts(GameObject uiObject)
     {
         if (isProcessing) return;
-        
+
         try
         {
             isProcessing = true;
@@ -225,7 +244,7 @@ public class UIComponentGenerator : EditorWindow
 
             // 智能处理 View 名称：避免 "ViewView" 后缀，并确保类名与文件名一致
             string viewClassName = uiObject.name.EndsWith("View") ? uiObject.name : uiObject.name + "View";
-            
+
             // 生成代码
             // 注意：这里传递 viewClassName 给模板，确保生成的 class XXX : UIViewBase 与文件名一致
             string viewCode = codeTemplate.GenerateViewCode(viewClassName, components, customNamespace);
@@ -256,7 +275,7 @@ public class UIComponentGenerator : EditorWindow
     private void GenerateViewScriptOnly(GameObject uiObject)
     {
         if (isProcessing) return;
-        
+
         try
         {
             isProcessing = true;
@@ -321,7 +340,7 @@ public class UIComponentGenerator : EditorWindow
 
         AssetDatabase.Refresh();
     }
-    
+
     /// <summary>
     /// 编译完成后回调：执行脚本挂载
     /// </summary>
@@ -356,11 +375,11 @@ public class UIComponentGenerator : EditorWindow
         var config = new UIComponentConfig();
         var scanner = new UIComponentScanner(config);
         var binder = new UIComponentBinder(ns);
-        
+
         var components = scanner.ScanUIComponents(targetObject);
         // 传递 viewClassName
         binder.AutoAddScriptsAndBindComponents(targetObject, components, "", true, persist, mode, viewClassName);
-        
+
         Debug.Log($"[UIComponentGenerator] 脚本挂载完成！");
     }
 
@@ -375,7 +394,7 @@ public class UIComponentGenerator : EditorWindow
         // 保存文件
         string viewPath = Path.Combine(viewScriptPath, $"{viewClassName}.cs");
         File.WriteAllText(viewPath, viewCode, Encoding.UTF8);
-        
+
         // 存储挂载任务到 SessionState (仅 View)
         if (autoAddComponents && selectedObject != null)
         {

@@ -43,7 +43,7 @@ namespace UI
         {
             base.Awake();
             CreateLayerRoots();
-            CDTU.Utils.CDLogger.Log("[UIManager] Initialized (List-Based)");
+            // CDTU.Utils.CDLogger.Log("[UIManager] Initialized (List-Based)");
         }
 
         #region Layer 管理
@@ -93,7 +93,7 @@ namespace UI
                 // 安全检查：如果层级不匹配，通常保持原层级或报警告
                 if (existEntry.Layer != layer)
                 {
-                    CDTU.Utils.CDLogger.LogWarning($"[UIManager] Try to open {type.Name} on {layer}, but it's already on {existEntry.Layer}. Keeping original layer.");
+                       CDTU.Utils.CDLogger.LogWarning($"[UIManager] Try to open {type.Name} on {layer}, but it's already on {existEntry.Layer}. Keeping original layer. If you intend to move it, call UIManager.Instance.MoveToLayer<{type.Name}>({layer}) or UIManager.Instance.MoveToLayer(view, newLayer).");
                     layer = existEntry.Layer;
                     stack = _layerStacks[layer];
                 }
@@ -270,6 +270,59 @@ namespace UI
             }
 
             stack.Clear();
+        }
+
+        /// <summary>
+        /// 将一个已打开的 View 移动到另一个 Layer（会更新栈、Hierarchy 和 _openViews）
+        /// </summary>
+        public bool MoveToLayer<T>(UILayer newLayer) where T : UIViewBase
+        {
+            if (!_openViews.TryGetValue(typeof(T), out var entry))
+                return false;
+            return MoveToLayer(entry.View, newLayer);
+        }
+
+        public bool MoveToLayer(UIViewBase view, UILayer newLayer)
+        {
+            if (view == null) return false;
+            Type type = view.GetType();
+            if (!_openViews.TryGetValue(type, out var entry))
+                return false;
+
+            var oldLayer = entry.Layer;
+            if (oldLayer == newLayer) return true;
+
+            var oldStack = _layerStacks[oldLayer];
+            var newStack = _layerStacks[newLayer];
+
+            bool wasTopInOld = oldStack.Any() && oldStack[oldStack.Count - 1] == view;
+            oldStack.Remove(view);
+            if (wasTopInOld && oldStack.Any())
+            {
+                oldStack[oldStack.Count - 1].OnResume();
+            }
+
+            // 如果目标层是独占性 UI，先关闭该层的所有 UI（不包含自己，因为尚未加入）
+            if (view.Exclusive)
+            {
+                CloseAllInLayer(newLayer);
+            }
+            else if (newStack.Any())
+            {
+                newStack[newStack.Count - 1].OnCovered();
+            }
+
+            // 重新设置父对象和层级
+            view.transform.SetParent(GetLayerRoot(newLayer), false);
+            view.transform.SetAsLastSibling();
+
+            newStack.Add(view);
+            _openViews[type].Layer = newLayer;
+
+            // 视图恢复/刷新
+            view.OnResume();
+
+            return true;
         }
 
         #endregion

@@ -129,12 +129,14 @@ namespace UI
 
             _destroyed = true;
 
-            // 确保逻辑被正确关闭
+            // 如果在销毁时仍标记为已打开，说明 UIManager 未正确调用 OnClose
             if (_opened)
             {
-                foreach (var logic in _logics)
+                Debug.LogWarning($"[UIViewBase] OnDestroy called while view still opened: {name}. Calling OnClose as fallback to ensure logics are cleaned up.");
+                try { OnClose(); }
+                catch (System.Exception e)
                 {
-                    try { logic.OnClose(); } catch { }
+                    Debug.LogException(e, this);
                 }
             }
 
