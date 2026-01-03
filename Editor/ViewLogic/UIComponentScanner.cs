@@ -31,6 +31,9 @@ public class UIComponentScanner
         {
             if (child == uiObject.transform) continue; // 跳过自身
 
+            // 只处理名字以 @ 开头的子物体
+            if (!child.gameObject.name.StartsWith("@")) continue;
+
             // 获取该物体上的所有 UI 组件类型
             var componentTypes = GetUIComponentTypes(child, componentCache);
             if (componentTypes.Count == 0) continue;

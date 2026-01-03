@@ -116,11 +116,6 @@ public class UICodeTemplate
         foreach (var kvp in components)
         {
             sb.AppendLine($"        [SerializeField] private {kvp.Value.name} {kvp.Key};");
-            // 为 Button 生成一个用于解绑的 UnityAction 字段，避免使用 RemoveAllListeners()
-            if (kvp.Value.name == "Button")
-            {
-                sb.AppendLine($"        private UnityEngine.Events.UnityAction _{kvp.Key}Action;");
-            }
         }
     }
 
@@ -166,12 +161,7 @@ public class UICodeTemplate
                 var methodBase = CapitalizeFirst(cleanName);
                 sb.AppendLine($"        public void Bind{methodBase}Button(System.Action onClickAction)");
                 sb.AppendLine("        {");
-                sb.AppendLine($"            if ({button.Key} != null)");
-                sb.AppendLine("            {");
-                // 先移除之前绑定的委托（仅移除我们自己添加的），再根据传入参数添加新的监听器
-                sb.AppendLine($"                if (_{button.Key}Action != null) {{ {button.Key}.onClick.RemoveListener(_{button.Key}Action); _{button.Key}Action = null; }}");
-                sb.AppendLine($"                if (onClickAction != null) {{ _{button.Key}Action = () => onClickAction(); {button.Key}.onClick.AddListener(_{button.Key}Action); }}");
-                sb.AppendLine("            }");
+                sb.AppendLine($"            if ({button.Key} != null) {{ {button.Key}.onClick.RemoveAllListeners(); if (onClickAction != null) {{ {button.Key}.onClick.AddListener(() => onClickAction()); }} }}");
                 sb.AppendLine("        }");
             }
         }

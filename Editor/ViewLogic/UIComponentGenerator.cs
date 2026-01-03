@@ -31,11 +31,8 @@ public class UIComponentGenerator : EditorWindow
     // 自动添加/持久化选项
     private bool autoAddComponents = true;
     private bool autoPersistBindings = false;
-    // 0 = Both, 1 = View only, 2 = Logic only
-    private int autoAddMode = 0;
     private const string EditorPrefAutoAdd = "UIComponentGenerator_AutoAdd";
     private const string EditorPrefPersist = "UIComponentGenerator_PersistBindings";
-    private const string EditorPrefAddMode = "UIComponentGenerator_AddMode";
 
 
 
@@ -66,7 +63,6 @@ public class UIComponentGenerator : EditorWindow
         // 加载用户偏好
         autoAddComponents = EditorPrefs.GetBool(EditorPrefAutoAdd, true);
         autoPersistBindings = EditorPrefs.GetBool(EditorPrefPersist, false);
-        autoAddMode = EditorPrefs.GetInt(EditorPrefAddMode, 0);
     }
 
 
@@ -146,19 +142,14 @@ public class UIComponentGenerator : EditorWindow
         GUILayout.Space(6);
         GUILayout.Label("自动添加选项", EditorStyles.boldLabel);
         bool newAutoAdd = EditorGUILayout.Toggle("自动 Add 生成的组件", autoAddComponents);
-        EditorGUI.BeginDisabledGroup(!newAutoAdd);
-        int newMode = EditorGUILayout.Popup("添加模式", autoAddMode, new string[] { "View + Logic", "仅 View", "仅 Logic" });
-        EditorGUI.EndDisabledGroup();
         bool newPersist = EditorGUILayout.Toggle(new GUIContent("持久化绑定引用", "在 Editor 中把找到的引用写回为序列化字段（会修改 Prefab/场景）"), autoPersistBindings);
 
-        if (newAutoAdd != autoAddComponents || newPersist != autoPersistBindings || newMode != autoAddMode)
+        if (newAutoAdd != autoAddComponents || newPersist != autoPersistBindings)
         {
             autoAddComponents = newAutoAdd;
             autoPersistBindings = newPersist;
-            autoAddMode = newMode;
             EditorPrefs.SetBool(EditorPrefAutoAdd, autoAddComponents);
             EditorPrefs.SetBool(EditorPrefPersist, autoPersistBindings);
-            EditorPrefs.SetInt(EditorPrefAddMode, autoAddMode);
         }
 
         GUILayout.Space(10);
@@ -334,7 +325,7 @@ public class UIComponentGenerator : EditorWindow
             SessionState.SetString("PendingUIBinding_ViewClass", viewClassName); // 存储 View 类名供 Binder 使用
             SessionState.SetInt("PendingUIBinding_ID", selectedObject.GetInstanceID());
             SessionState.SetBool("PendingUIBinding_Persist", autoPersistBindings);
-            SessionState.SetInt("PendingUIBinding_Mode", autoAddMode);
+            SessionState.SetInt("PendingUIBinding_Mode", 0); // 0 = View + Logic (默认)
             SessionState.SetString("PendingUIBinding_Namespace", customNamespace);
         }
 
@@ -362,7 +353,7 @@ public class UIComponentGenerator : EditorWindow
         string ns = SessionState.GetString("PendingUIBinding_Namespace", "Game.UI");
 
         // 查找对象
-        GameObject targetObject = EditorUtility.EntityIdToObject(objectID) as GameObject;
+        GameObject targetObject = EditorUtility.InstanceIDToObject(objectID) as GameObject;
         if (targetObject == null)
         {
             Debug.LogWarning("[UIComponentGenerator] 找不到原始目标对象，无法自动挂载脚本。");
