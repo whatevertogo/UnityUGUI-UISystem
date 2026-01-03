@@ -161,7 +161,7 @@ public class UICodeTemplate
                 var methodBase = CapitalizeFirst(cleanName);
                 sb.AppendLine($"        public void Bind{methodBase}Button(System.Action onClickAction)");
                 sb.AppendLine("        {");
-                sb.AppendLine($"            if ({button.Key} != null) {{ {button.Key}.onClick.RemoveAllListeners(); if (onClickAction != null) {{ {button.Key}.onClick.AddListener(() => onClickAction()); }} }}");
+                sb.AppendLine($"            if ({button.Key} != null && onClickAction != null) {{ {button.Key}.onClick.AddListener(() => onClickAction()); }}");
                 sb.AppendLine("        }");
             }
         }
