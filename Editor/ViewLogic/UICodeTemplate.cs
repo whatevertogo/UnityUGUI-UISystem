@@ -39,9 +39,6 @@ public class UICodeTemplate
         // 生成组件访问方法
         GenerateComponentAccessMethods(sb, components);
 
-        // 生成关闭方法
-        GenerateCloseMethod(sb);
-
         // 生成类结束
         GenerateViewClassEnd(sb, namespaceName);
 
@@ -147,13 +144,13 @@ public class UICodeTemplate
             }
         }
 
-        // 生成按钮事件绑定方法
+        // 生成按钮事件绑定方法（使用基类 BindButton 方法，自动管理事件清理）
         var buttonComponents = components.Where(c => c.Value.name == "Button").ToList();
         
         if (buttonComponents.Count > 0)
         {
             sb.AppendLine();
-            sb.AppendLine("        /// <summary>绑定 Button 事件</summary>");
+            sb.AppendLine("        /// <summary>绑定 Button 事件（使用基类 BindButton，自动在 OnClose 时清理）</summary>");
             foreach (var button in buttonComponents)
             {
                 // 如果变量名已经包含了类型后缀（如 saveButton），去掉后缀以避免生成 BindXButtonButton
@@ -161,7 +158,7 @@ public class UICodeTemplate
                 var methodBase = CapitalizeFirst(cleanName);
                 sb.AppendLine($"        public void Bind{methodBase}Button(System.Action onClickAction)");
                 sb.AppendLine("        {");
-                sb.AppendLine($"            if ({button.Key} != null && onClickAction != null) {{ {button.Key}.onClick.AddListener(() => onClickAction()); }}");
+                sb.AppendLine($"            if ({button.Key} != null && onClickAction != null) BindButton({button.Key}, onClickAction);");
                 sb.AppendLine("        }");
             }
         }
@@ -220,15 +217,6 @@ public class UICodeTemplate
                 sb.AppendLine("        }");
                 break;
         }
-    }
-
-    private void GenerateCloseMethod(StringBuilder sb)
-    {
-        sb.AppendLine();
-        sb.AppendLine("        public void Close()");
-        sb.AppendLine("        {");
-        sb.AppendLine("            gameObject.SetActive(false);");
-        sb.AppendLine("        }");
     }
 
     private void GenerateViewClassEnd(StringBuilder sb, string namespaceName)
@@ -325,14 +313,16 @@ public class UICodeTemplate
         sb.AppendLine();
         sb.AppendLine("    /// <summary>");
         sb.AppendLine("    /// MonoBehaviour Wrapper：创建并持有 LogicCore，在运行时作为 IUILogic 注入到 View");
+        sb.AppendLine("    /// 继承 UILogicBase 以获得自动事件订阅管理能力");
         sb.AppendLine("    /// </summary>");
-        sb.AppendLine($"    public class {uiObjectName}Logic : MonoBehaviour, IUILogic");
+        sb.AppendLine($"    public class {uiObjectName}Logic : UILogicBase");
         sb.AppendLine("    {");
         sb.AppendLine($"        private {uiObjectName}LogicCore _core = new {uiObjectName}LogicCore();");
         sb.AppendLine($"        private {viewClassName} _view;");
         sb.AppendLine();
-        sb.AppendLine("        public void Bind(UIViewBase view)");
+        sb.AppendLine("        public override void Bind(UIViewBase view)");
         sb.AppendLine("        {");
+        sb.AppendLine("            base.Bind(view);");
         sb.AppendLine($"            _view = view as {viewClassName};");
         sb.AppendLine("            if (_view == null)");
         sb.AppendLine("            {");
@@ -352,33 +342,31 @@ public class UICodeTemplate
         }
         sb.AppendLine("        }");
         sb.AppendLine();
-        sb.AppendLine("        public void OnOpen(UIArgs args)");
+        sb.AppendLine("        public override void OnOpen(UIArgs args)");
         sb.AppendLine("        {");
+        sb.AppendLine("            base.OnOpen(args);");
         sb.AppendLine("            _core.OnOpen(args);");
         sb.AppendLine("        }");
         sb.AppendLine();
-        sb.AppendLine("        public void OnClose()");
+        sb.AppendLine("        public override void OnClose()");
         sb.AppendLine("        {");
         sb.AppendLine("            _core.OnClose();");
-        // 解绑按钮事件
-        foreach (var button in buttonComponents)
-        {
-            var cleanName = StripComponentTypeSuffix(button.Key, button.Value.name);
-            string btnName = CapitalizeFirst(cleanName);
-            sb.AppendLine($"            if (_view != null) _view.Bind{btnName}Button(null);");
-        }
+        sb.AppendLine("            // Button 事件由 UIViewBase.BindButton 自动清理，无需手动解绑");
         sb.AppendLine("            _view = null;");
+        sb.AppendLine("            base.OnClose();");
         sb.AppendLine("        }");
         
         // 实现接口方法
         sb.AppendLine();
-        sb.AppendLine("        public void OnCovered()");
+        sb.AppendLine("        public override void OnCovered()");
         sb.AppendLine("        {");
+        sb.AppendLine("            base.OnCovered();");
         sb.AppendLine("            _core.OnCovered();");
         sb.AppendLine("        }");
         sb.AppendLine();
-        sb.AppendLine("        public void OnResume()");
+        sb.AppendLine("        public override void OnResume()");
         sb.AppendLine("        {");
+        sb.AppendLine("            base.OnResume();");
         sb.AppendLine("            _core.OnResume();");
         sb.AppendLine("        }");
 

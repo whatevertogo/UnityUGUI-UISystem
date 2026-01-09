@@ -302,6 +302,8 @@ public class UIComponentGenerator : EditorWindow
         }
     }
 
+
+
     /// <summary>
     /// 创建目录并保存文件
     /// </summary>
@@ -331,6 +333,7 @@ public class UIComponentGenerator : EditorWindow
 
         AssetDatabase.Refresh();
     }
+
 
     /// <summary>
     /// 编译完成后回调：执行脚本挂载
