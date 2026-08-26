@@ -1,0 +1,19 @@
+{
+  "name": "com.whatevertogo.ugui-system",
+  "version": "1.0.0",
+  "displayName": "Whatevertogo uGUI System",
+  "description": "A layered uGUI view stack with explicit factories, lifecycle hooks, logic components, and back navigation.",
+  "unity": "2021.3",
+  "keywords": [
+    "ui",
+    "ugui",
+    "view-stack"
+  ],
+  "author": {
+    "name": "whatevertogo",
+    "url": "https://github.com/whatevertogo"
+  },
+  "dependencies": {
+    "com.unity.ugui": "1.0.0"
+  }
+}

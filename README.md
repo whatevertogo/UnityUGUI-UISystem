@@ -1,61 +1,78 @@
-# Unity UI System (UISystem)
-[![zread](https://img.shields.io/badge/Ask_Zread-_.svg?style=flat&color=00b0aa&labelColor=000000&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTQuOTYxNTYgMS42MDAxSDIuMjQxNTZDMS44ODgxIDEuNjAwMSAxLjYwMTU2IDEuODg2NjQgMS42MDE1NiAyLjI0MDFWNC45NjAxQzEuNjAxNTYgNS4zMTM1NiAxLjg4ODEgNS42MDAxIDIuMjQxNTYgNS42MDAxSDQuOTYxNTZDNS4zMTUwMiA1LjYwMDEgNS42MDE1NiA1LjMxMzU2IDUuNjAxNTYgNC45NjAxVjIuMjQwMUM1LjYwMTU2IDEuODg2NjQgNS4zMTUwMiAxLjYwMDEgNC45NjE1NiAxLjYwMDFaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00Ljk2MTU2IDEwLjM5OTlIMi4yNDE1NkMxLjg4ODEgMTAuMzk5OSAxLjYwMTU2IDEwLjY4NjQgMS42MDE1NiAxMS4wMzk5VjEzLjc1OTlDMS42MDE1NiAxNC4xMTM0IDEuODg4MSAxNC4zOTk5IDIuMjQxNTYgMTQuMzk5OUg0Ljk2MTU2QzUuMzE1MDIgMTQuMzk5OSA1LjYwMTU2IDE0LjExMzQgNS42MDE1NiAxMy43NTk5VjExLjAzOTlDNS42MDE1NiAxMC42ODY0IDUuMzE1MDIgMTAuMzk5OSA0Ljk2MTU2IDEwLjM5OTlaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik0xMy43NTg0IDEuNjAwMUgxMS4wMzg0QzEwLjY4NSAxLjYwMDEgMTAuMzk4NCAxLjg4NjY0IDEwLjM5ODQgMi4yNDAxVjQuOTYwMUMxMC4zOTg0IDUuMzEzNTYgMTAuNjg1IDUuNjAwMSAxMS4wMzg0IDUuNjAwMUgxMy43NTg0QzE0LjExMTkgNS42MDAxIDE0LjM5ODQgNS4zMTM1NiAxNC4zOTg0IDQuOTYwMVYyLjI0MDFDMTQuMzk4NCAxLjg4NjY0IDE0LjExMTkgMS42MDAxIDEzLjc1ODQgMS42MDAxWiIgZmlsbD0iI2ZmZiIvPgo8cGF0aCBkPSJNNCAxMkwxMiA0TDQgMTJaIiBmaWxsPSIjZmZmIi8%2BCjxwYXRoIGQ9Ik00IDEyTDEyIDQiIHN0cm9rZT0iI2ZmZiIgc3Ryb2tlLXdpZHRoPSIxLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4K&logoColor=ffffff)](https://zread.ai/whatevertogo/UnityUGUI-UISystem)
+# Whatevertogo uGUI System
 
-## 简介
+一个只负责通用 UI 生命周期和分层栈的 Unity uGUI（Unity 传统 UI）包。
 
-这是一个用于 Unity 的轻量级 UI 框架样例，包含 UI 管理器、视图基类、示例视图与 UI 逻辑分离的实现。适合作为小型游戏或项目的 UI 架构参考与快速集成模板。
+## 安装
 
-## 主要特性
+在 Unity Package Manager（Unity 包管理器）中添加：
 
-- 简单的 UI 管理器与视图生命周期管理
-- 视图（UIView）与逻辑（UILogic）分离，便于测试与维护
-- 提供示例视图与逻辑（PlayingState）
-- 包含编辑器辅助脚本（用于自动化/生成组件）
+```text
+https://github.com/whatevertogo/UnityUGUI-UISystem.git
+```
 
-## 项目结构（关键文件）
+最低版本为 Unity 2021.3。
 
-- `Editor/UIComponentGenerator.cs` — 编辑器脚本，辅助生成/管理 UI 组件
-- `Scripts/UI/UIManager.cs` — 全局 UI 管理器（入口/调度）
-- `Scripts/UI/UIViewBase.cs` — 视图基类，所有具体 UI 视图继承自此
-- `Scripts/UI/IUILogic.cs` — UI 逻辑接口定义
-- `Scripts/UI/IUIManager.cs` — UI 管理器接口定义
-- `Scripts/UI/UIArgs.cs` — 视图/逻辑间传递的参数类型
-- `Scripts/UI/Enum/UILayerEnum.cs` — UI 分层枚举定义
-- `Scripts/UI/Loading/UIAssetProvider.cs` — UI 资源加载提供者（抽象/示例）
-- `Scripts/UI/Logic/PlayingStateUILogic.cs` — 示例 UI 逻辑实现
-- `Scripts/UI/Views/PlayingStateUIView.cs` — 示例视图实现
+## 核心边界
 
-（更多辅助 meta 文件存在于工程中，用于 Unity 导入）
+- `UIView`：视图配置、按钮绑定和生命周期。
+- `IUIViewLogic` / `UIViewLogic`：可选的视图逻辑组件。
+- `UIManager`：按层维护打开顺序、覆盖、恢复、返回和独占视图。
+- `IUIViewFactory`：资源创建与释放边界。
+- `UIViewCatalog` / `PrefabUIViewFactory`：无需额外依赖的预制体目录实现。
 
-## 快速开始（集成到你的 Unity 项目）
+核心不依赖 Addressables（可寻址资源系统）、UniTask、DOTween、事件总线、项目单例或任何具体游戏类型。需要其他加载方式时，实现自己的 `IUIViewFactory` 即可。
 
-1. 将 `Editor/` 与 `Scripts/` 文件夹（或对应文件）复制到你的 Unity 项目的 `Assets/` 下（例如 `Assets/UISystem`）。
-2. 打开 Unity，等待编译完成。
-3. 查看并参考示例：
-   - `Scripts/UI/Views/PlayingStateUIView.cs`
-   - `Scripts/UI/Logic/PlayingStateUILogic.cs`
-   它们演示了视图与逻辑如何配合。
-4. 在需要显示 UI 的地方使用 `UIManager` 提供的接口（项目中有 `IUIManager` / `UIManager`，请参考其实现里暴露的方法进行调用）。
+## 配置
 
-注意：不同项目对 UI 显示/隐藏、资源加载的实现会不同，建议根据 `UIAssetProvider` 的抽象替换为你项目的资源加载实现（Addressables、Resources、AssetBundle 等）。
+1. 创建 `UIViewCatalog` 资产，将所有 UIView 预制体加入列表。
+2. 在 Canvas 下添加 `UIManager`。
+3. 把 Catalog 赋给 Manager。
+4. 具体页面继承 `UIView`，按需覆盖生命周期。
 
-## 示例与扩展建议
+```csharp
+public sealed class InventoryView : UIView
+{
+    public override UILayer Layer => UILayer.Normal;
+    public override bool CanGoBack => true;
 
-- 新建视图：继承 `UIViewBase`，实现初始化与销毁逻辑。
-- 新建逻辑：实现 `IUILogic` 接口，将视图交互事件转发到逻辑层。
-- 替换资源加载：实现或扩展 `UIAssetProvider`，接入你项目的资源管理方案。
-- 编辑器工具：`UIComponentGenerator` 可用来自动化创建绑定脚本或组件（按需调整）。
+    protected override void OnOpened(UIArguments arguments)
+    {
+        // render
+    }
+}
+```
 
-## 贡献
+## 打开、关闭与返回
 
-欢迎提 issue 与 pull request。建议提交前：
+```csharp
+InventoryView view = uiManager.Open<InventoryView>(arguments);
 
-- 保持代码风格一致
-- 补充或更新示例
-- 添加说明或测试用例，便于后续维护
+uiManager.Close<InventoryView>();
+uiManager.CloseTop(UILayer.Popup);
+uiManager.HandleBack();
+```
 
-## 许可
+行为约定：
 
-建议使用 MIT 许可证（如果你希望开源且可自由使用）。如果需要我可以生成 `LICENSE` 文件内容。
+- 每个具体 View 类型最多打开一个实例。
+- 重复打开已有实例会将其置顶并触发 Refresh（刷新）。
+- 新页面会 Cover（覆盖）同层栈顶；关闭栈顶会 Resume（恢复）下一层页面。
+- `Exclusive` 页面打开时关闭同层全部旧页面。
+- `CanGoBack == false` 的栈顶不会被 `HandleBack` 关闭。
+- Manager 不是全局单例，由场景或依赖注入明确持有。
 
+## Logic（逻辑组件）
 
+View 创建时会自动收集子层级中的 `IUIViewLogic`：
+
+```csharp
+public sealed class InventoryLogic : UIViewLogic
+{
+    public override void OnOpen(UIArguments arguments) { }
+    public override void OnCovered() { }
+    public override void OnResumed() { }
+    public override void OnClose() { }
+}
+```
+
+按钮可以通过 `BindButton` 绑定，关闭时会自动解绑。
